@@ -17,7 +17,7 @@ func _ready() -> void:
 	_load()
 
 
-func begin(style: int, mode: String, effect: int, low_stimulation: bool) -> void:
+func begin(theme: int, mode: String, effect: int, low_stimulation: bool) -> void:
 	end("interrupted")
 	_current = {
 		"start": int(Time.get_unix_time_from_system()),
@@ -25,7 +25,7 @@ func begin(style: int, mode: String, effect: int, low_stimulation: bool) -> void
 		"touches": 0,
 		"max_fingers": 0,
 		"high_energy_s": 0.0,
-		"style": style,
+		"theme": theme,
 		"mode": mode,
 		"effect": effect,
 		"low_stim": low_stimulation,
@@ -76,10 +76,10 @@ func summary(days: int) -> Dictionary:
 	var bias_s := int(Time.get_time_zone_from_system().get("bias", 0)) * 60
 	var result := {
 		"sessions": 0, "seconds": 0.0, "touches": 0, "high_energy_s": 0.0,
-		"rested": 0, "days_played": 0, "max_fingers": 0, "favourite_style": -1,
+		"rested": 0, "days_played": 0, "max_fingers": 0, "favourite_theme": -1,
 	}
 	var days_seen := {}
-	var style_seconds := {}
+	var theme_seconds := {}
 	for s in _sessions:
 		if s["start"] < since:
 			continue
@@ -91,14 +91,14 @@ func summary(days: int) -> Dictionary:
 		if s["rested"]:
 			result["rested"] += 1
 		days_seen[int((s["start"] + bias_s) / 86400)] = true
-		var style := int(s["style"])
-		style_seconds[style] = style_seconds.get(style, 0.0) + s["seconds"]
+		var theme := int(s.get("theme", 0))
+		theme_seconds[theme] = theme_seconds.get(theme, 0.0) + s["seconds"]
 	result["days_played"] = days_seen.size()
 	var best := -1.0
-	for style in style_seconds:
-		if style_seconds[style] > best:
-			best = style_seconds[style]
-			result["favourite_style"] = style
+	for theme in theme_seconds:
+		if theme_seconds[theme] > best:
+			best = theme_seconds[theme]
+			result["favourite_theme"] = theme
 	return result
 
 
@@ -117,8 +117,8 @@ func summary_text(days: int) -> String:
 		"Most fingers at once: %d" % s["max_fingers"],
 		"Sessions ended by play timer: %d" % s["rested"],
 	])
-	if s["favourite_style"] >= 0:
-		lines.append("Favourite style: %s" % Settings.STYLE_NAMES[s["favourite_style"]])
+	if s["favourite_theme"] >= 0:
+		lines.append("Favourite theme: %s" % Settings.THEME_NAMES[s["favourite_theme"]])
 	return "\n".join(lines)
 
 

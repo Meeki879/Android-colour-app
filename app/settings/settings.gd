@@ -5,32 +5,41 @@ signal changed
 
 const PATH := "user://settings.cfg"
 
-const STYLE_NAMES := ["Watercolour", "Disco", "Anime", "Space"]
-const EFFECT_NAMES := ["Ripple", "Burst", "Glow"]
-const PALETTE_NAMES := ["Rainbow", "Pastel", "Neon", "Ocean", "Nebula", "Bedtime"]
+# Themes are the worlds the child picks on Home: background, blend style and sound set.
+const THEME_NAMES := ["Simple", "Watercolour", "Disco", "Anime", "Space"]
+# Touch effects, modelled on reactive RGB keyboard modes.
+const EFFECT_NAMES := ["Ripple", "Cross lines", "Glow"]
+# Background animation that runs without touches (keyboard "breathing", "wave", "spectrum").
+const AMBIENT_NAMES := ["Off", "Breathing", "Wave", "Spectrum"]
 
-# Cosine palettes: colour(t) = a + b * cos(TAU * (c * t + d)). Order matches PALETTE_NAMES.
+# Colour schemes as 2-5 stops, blended in a loop. "Dynamic" and "Sports Fusion" are the first two
+# keyboard palettes on colorany.com; their near-black and grey stops are left out because they
+# are invisible as light.
+const PALETTE_NAMES := ["Rainbow", "Dynamic", "Sports Fusion", "Pastel", "Ocean", "Nebula", "Bedtime"]
 const PALETTES := [
-	[Vector3(0.5, 0.5, 0.5), Vector3(0.5, 0.5, 0.5), Vector3(1.0, 1.0, 1.0), Vector3(0.0, 0.33, 0.67)],
-	[Vector3(0.75, 0.7, 0.8), Vector3(0.25, 0.25, 0.2), Vector3(1.0, 1.0, 1.0), Vector3(0.0, 0.33, 0.67)],
-	[Vector3(0.5, 0.5, 0.5), Vector3(0.5, 0.5, 0.5), Vector3(1.0, 1.0, 0.5), Vector3(0.8, 0.9, 0.3)],
-	[Vector3(0.2, 0.5, 0.6), Vector3(0.2, 0.3, 0.35), Vector3(1.0, 1.0, 1.0), Vector3(0.0, 0.1, 0.2)],
-	[Vector3(0.5, 0.35, 0.65), Vector3(0.5, 0.35, 0.35), Vector3(1.0, 1.0, 1.0), Vector3(0.6, 0.8, 0.2)],
-	[Vector3(0.55, 0.3, 0.15), Vector3(0.3, 0.2, 0.1), Vector3(1.0, 1.0, 1.0), Vector3(0.0, 0.1, 0.2)],
+	["#ff3b30", "#ffcc00", "#34c759", "#0a84ff", "#bf5af2"],
+	["#ff5733", "#c70039", "#900c3f", "#f0f0f0"],
+	["#c8102e", "#ffc700", "#0072b8", "#ffffff"],
+	["#ffb3ba", "#ffdfba", "#baffc9", "#bae1ff", "#e3c6ff"],
+	["#00b4d8", "#0077b6", "#48cae4", "#90e0ef", "#023e8a"],
+	["#7b2ff7", "#f107a3", "#00d2ff", "#5c3dff"],
+	["#ff9e5e", "#e0603a", "#b8463a", "#7a3b5e"],
 ]
 
-# Per style, indexed like STYLE_NAMES.
-const STYLE_DEFAULT_PALETTE := [1, 2, 0, 4]
+# Per theme, indexed like THEME_NAMES.
+const THEME_DEFAULT_PALETTE := [0, 3, 2, 3, 5]
+const THEME_DEFAULT_AMBIENT := [0, 0, 2, 0, 0]
 # Fraction of the previous frame kept each frame (trails). Capped at 0.85: higher values leave
 # permanent faint ghosts in an 8-bit render target because the fade rounds back to the same value.
-const STYLE_PERSISTENCE := [0.85, 0.4, 0.0, 0.7]
+const THEME_PERSISTENCE := [0.5, 0.85, 0.4, 0.0, 0.7]
 
 const TIMER_CHOICES := [0, 5, 10, 15, 20, 30]
 
 var mode := "simple"
-var style := 3
+var theme := 0
 var palette := 0
 var effect := 0
+var ambient := 0
 var sound_enabled := true
 var volume := 0.7
 var haptics_enabled := true
@@ -54,9 +63,10 @@ func load_settings() -> void:
 	if cfg.load(PATH) != OK:
 		return
 	mode = cfg.get_value("play", "mode", mode)
-	style = clampi(cfg.get_value("play", "style", style), 0, STYLE_NAMES.size() - 1)
+	theme = clampi(cfg.get_value("play", "theme", theme), 0, THEME_NAMES.size() - 1)
 	palette = clampi(cfg.get_value("play", "palette", palette), 0, PALETTES.size() - 1)
 	effect = clampi(cfg.get_value("play", "effect", effect), 0, EFFECT_NAMES.size() - 1)
+	ambient = clampi(cfg.get_value("play", "ambient", ambient), 0, AMBIENT_NAMES.size() - 1)
 	low_stimulation = cfg.get_value("play", "low_stimulation", low_stimulation)
 	sound_enabled = cfg.get_value("sound", "enabled", sound_enabled)
 	volume = clampf(cfg.get_value("sound", "volume", volume), 0.0, 1.0)
@@ -70,9 +80,10 @@ func load_settings() -> void:
 func save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("play", "mode", mode)
-	cfg.set_value("play", "style", style)
+	cfg.set_value("play", "theme", theme)
 	cfg.set_value("play", "palette", palette)
 	cfg.set_value("play", "effect", effect)
+	cfg.set_value("play", "ambient", ambient)
 	cfg.set_value("play", "low_stimulation", low_stimulation)
 	cfg.set_value("sound", "enabled", sound_enabled)
 	cfg.set_value("sound", "volume", volume)
@@ -85,13 +96,28 @@ func save_settings() -> void:
 	changed.emit()
 
 
-## Simple mode is a fixed calm preset; only the art style is chosen (by the child on Home).
+## Simple mode is a fixed calm preset per theme; Custom uses the Grown-ups choices.
 func active_effect() -> int:
 	return 0 if mode == "simple" else effect
 
 
 func active_palette() -> int:
-	return STYLE_DEFAULT_PALETTE[style] if mode == "simple" else palette
+	return THEME_DEFAULT_PALETTE[theme] if mode == "simple" else palette
+
+
+func active_ambient() -> int:
+	return THEME_DEFAULT_AMBIENT[theme] if mode == "simple" else ambient
+
+
+## Palette stops as vec3 colours for the shader, padded to the shader's 5 slots.
+func palette_stops(index: int) -> PackedVector3Array:
+	var stops := PackedVector3Array()
+	for hex in PALETTES[index]:
+		var c := Color(hex)
+		stops.append(Vector3(c.r, c.g, c.b))
+	while stops.size() < 5:
+		stops.append(stops[0])
+	return stops
 
 
 func start_session_if_needed() -> void:

@@ -13,7 +13,7 @@ A touch-reactive colour and light app for children, young adults and neurodiverg
 1. Install Godot 4.3 or newer (standard build, not .NET) from godotengine.org.
 2. In Godot: Import > select `app/project.godot` > Import & Edit.
 3. Press F5. The window opens at phone proportions.
-4. Mouse clicks act as touches (hold the button to charge a ripple, drag for trails). Multi-touch needs a real touchscreen or phone.
+4. Mouse clicks act as touches (drag for glow trails). Multi-touch needs a real touchscreen or phone.
 5. Leave the play screen by holding the top-left corner for 3 seconds.
 6. Grown-ups area: tap Custom, then answer the multiplication question.
 
@@ -35,8 +35,8 @@ app/
   scenes/canvas/        Touch canvas, corner-hold exit
   scenes/grownups/      Parental gate + Custom settings + help
   engine/               Energy (tap tempo), intensity resolver, play statistics (autoload: PlayStats)
-  render/               Effect shader (ripples, bursts, glow, 4 art styles)
-  audio/sfx.gd          Placeholder pentatonic tone, 8-voice cap (autoload: Sfx)
+  render/               Effect shader (ripple, cross lines, glow; 5 theme backgrounds; background animations)
+  audio/sfx.gd          Generated instrument and scale per theme, 8-voice cap (autoload: Sfx)
   haptics/haptics.gd    Intensity-scaled vibration (autoload: Haptics)
   ui/ui_kit.gd          Large-tile UI helpers
 ```

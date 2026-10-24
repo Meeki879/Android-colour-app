@@ -112,10 +112,12 @@ func _build_settings() -> void:
 	column.add_child(UiKit.label("Custom", 40))
 	column.add_child(_option("Touch effect", Settings.EFFECT_NAMES, Settings.effect,
 		func(i): Settings.effect = i))
-	column.add_child(_option("Art style", Settings.STYLE_NAMES, Settings.style,
-		func(i): Settings.style = i))
+	column.add_child(_option("Theme", Settings.THEME_NAMES, Settings.theme,
+		func(i): Settings.theme = i))
 	column.add_child(_option("Colours", Settings.PALETTE_NAMES, Settings.palette,
 		func(i): Settings.palette = i))
+	column.add_child(_option("Background animation", Settings.AMBIENT_NAMES, Settings.ambient,
+		func(i): Settings.ambient = i))
 	column.add_child(_toggle("Low stimulation (slower, softer)", Settings.low_stimulation,
 		func(on): Settings.low_stimulation = on))
 

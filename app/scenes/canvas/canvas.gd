@@ -8,14 +8,13 @@ const Energy := preload("res://engine/energy.gd")
 const Intensity := preload("res://engine/intensity.gd")
 const FX_SHADER := preload("res://render/canvas_fx.gdshader")
 
-enum Kind { RIPPLE, BURST, GLOW }
+enum Kind { RIPPLE, CROSS, GLOW }
 
 const MAX_EFFECTS := 64  # must match the uniform array size in the shader
-const LIFETIME := {Kind.RIPPLE: 3.0, Kind.BURST: 1.2}  # must match the shader
+const LIFETIME := {Kind.RIPPLE: 3.0, Kind.CROSS: 2.0}  # must match the shader
 const GLOW_FADE := 0.8
 const BASE_SPEED_CM := 6.0
 const TRAIL_SPACING_CM := 0.8
-const HOLD_RELEASE_S := 0.35  # holds longer than this release a charged ripple
 const EXIT_HOLD_S := 3.0
 const CORNER_CM := 1.5
 const WIND_DOWN_S := 60.0
@@ -36,6 +35,7 @@ var _hue_base := 0.0
 var _corner_index := -1
 var _corner_start := 0.0
 var _rest_marked := false
+var _ambient := 0
 
 
 func _ready() -> void:
@@ -69,6 +69,7 @@ func _ready() -> void:
 	resized.connect(_on_resized)
 	_on_resized()
 	_apply_settings()
+	Sfx.set_theme(Settings.theme)
 	Settings.start_session_if_needed()
 	_begin_stats()
 
@@ -86,19 +87,19 @@ func _notification(what: int) -> void:
 
 
 func _begin_stats() -> void:
-	PlayStats.begin(Settings.style, Settings.mode, Settings.active_effect(), Settings.low_stimulation)
+	PlayStats.begin(Settings.theme, Settings.mode, Settings.active_effect(), Settings.low_stimulation)
 
 
 func _apply_settings() -> void:
 	var simple := Settings.mode == "simple"
 	_speed_mult = (0.75 if simple else 1.0) * (0.6 if Settings.low_stimulation else 1.0)
-	var pal: Array = Settings.PALETTES[Settings.active_palette()]
-	_material.set_shader_parameter("pal_a", pal[0])
-	_material.set_shader_parameter("pal_b", pal[1])
-	_material.set_shader_parameter("pal_c", pal[2])
-	_material.set_shader_parameter("pal_d", pal[3])
-	_material.set_shader_parameter("style", Settings.style)
-	_material.set_shader_parameter("persistence", Settings.STYLE_PERSISTENCE[Settings.style])
+	var palette := Settings.active_palette()
+	_material.set_shader_parameter("pal", Settings.palette_stops(palette))
+	_material.set_shader_parameter("pal_n", Settings.PALETTES[palette].size())
+	_material.set_shader_parameter("theme", Settings.theme)
+	_material.set_shader_parameter("persistence", Settings.THEME_PERSISTENCE[Settings.theme])
+	_ambient = Settings.active_ambient()
+	_material.set_shader_parameter("ambient", _ambient)
 	var saturation := 0.6 if Settings.low_stimulation else (0.9 if simple else 1.0)
 	_material.set_shader_parameter("saturation", saturation)
 
@@ -152,14 +153,16 @@ func _on_down(index: int, pos: Vector2) -> void:
 	var kind := Settings.active_effect()
 	if kind != Kind.GLOW:
 		_spawn(kind, pos, intensity)
-	var glow := _spawn(Kind.GLOW, pos, 0.5 + 0.3 * intensity)
+	# The finger glow is soft unless Glow is the chosen effect.
+	var glow_k := 0.5 + 0.3 * intensity if kind == Kind.GLOW else 0.35 + 0.2 * intensity
+	var glow := _spawn(Kind.GLOW, pos, glow_k)
 	glow["held"] = true
 	_pointers[index] = {"pos": pos, "start": _t, "glow": glow, "last_trail": pos}
 	PlayStats.touch(_pointers.size())
 	_feedback(pos, intensity)
 
 
-func _on_up(index: int, pos: Vector2) -> void:
+func _on_up(index: int, _pos: Vector2) -> void:
 	if index == _corner_index:
 		_corner_index = -1
 	if not _pointers.has(index):
@@ -169,11 +172,6 @@ func _on_up(index: int, pos: Vector2) -> void:
 	var glow: Dictionary = p["glow"]
 	glow["held"] = false
 	glow["end"] = _t
-	var held: float = _t - p["start"]
-	if held >= HOLD_RELEASE_S:
-		var intensity := Intensity.for_hold(held)
-		_spawn(Kind.RIPPLE, pos, intensity)
-		_feedback(pos, intensity)
 
 
 func _on_drag(index: int, pos: Vector2, velocity: Vector2) -> void:
@@ -187,7 +185,7 @@ func _on_drag(index: int, pos: Vector2, velocity: Vector2) -> void:
 	glow["pos"] = pos
 	if pos.distance_to(p["last_trail"]) >= TRAIL_SPACING_CM * _units_per_cm:
 		p["last_trail"] = pos
-		_spawn(Kind.BURST, pos, Intensity.for_drag(velocity.length() / _units_per_cm))
+		_spawn(Kind.GLOW, pos, Intensity.for_drag(velocity.length() / _units_per_cm))
 
 
 func _spawn(kind: int, pos: Vector2, intensity: float) -> Dictionary:
@@ -240,11 +238,11 @@ func _upload(master: float) -> void:
 	_material.set_shader_parameter("master", master)
 
 
-## Stops rendering when nothing moves, to save battery. Ambient animation (stars, sparkle)
-## pauses too, which is acceptable for a still screen.
+## Stops rendering when nothing moves, to save battery. Background animation keeps it running;
+## small ambient details (stars, orbits) pause on a still screen, which is acceptable.
 func _update_idle(delta: float, master: float) -> void:
 	var fading := master > 0.0 and master < 1.0
-	if not _effects.is_empty() or not _pointers.is_empty() or fading:
+	if not _effects.is_empty() or not _pointers.is_empty() or fading or _ambient != 0:
 		_idle_for = 0.0
 		return
 	_idle_for += delta

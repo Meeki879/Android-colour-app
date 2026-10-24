@@ -1,19 +1,20 @@
 extends Control
-## Child-safe home: Simple / Custom tiles, art style tiles, big Play button.
-## Custom leads to the Grown-ups area, which sits behind the parental gate.
+## Child-safe home: one row of theme tiles (one selected at a time), a Custom door to the
+## Grown-ups area behind the parental gate, and a big Play button.
 
 signal play_requested
 signal grownups_requested
 
 const UiKit := preload("res://ui/ui_kit.gd")
 const BACKGROUND := Color("#1d1b2f")
-const STYLE_COLOURS := [Color("#5b8fb9"), Color("#b0306a"), Color("#e07a5f"), Color("#3d3b8e")]
+# Tile colours hint at each theme's world. Indexed like Settings.THEME_NAMES.
+const THEME_COLOURS := [Color("#8d7b68"), Color("#5b8fb9"), Color("#b0306a"), Color("#e07a5f"), Color("#3d3b8e")]
+const CUSTOM_COLOUR := Color("#4a4a5a")
 
-var _simple: Button
-var _custom: Button
 var _play: Button
+var _custom: Button
 var _grid: GridContainer
-var _style_tiles: Array[Button] = []
+var _theme_tiles: Array[Button] = []
 
 
 func _ready() -> void:
@@ -34,24 +35,17 @@ func _ready() -> void:
 	framed.size_flags_horizontal = SIZE_EXPAND_FILL
 	scroll.add_child(framed)
 
-	var modes := HBoxContainer.new()
-	modes.add_theme_constant_override("separation", 24)
-	_simple = UiKit.tile("Simple", Color("#2e86c1"))
-	_simple.pressed.connect(_on_simple)
-	_custom = UiKit.tile("Custom", Color("#7d3c98"))
-	_custom.pressed.connect(grownups_requested.emit)
-	modes.add_child(_simple)
-	modes.add_child(_custom)
-	column.add_child(modes)
-
 	_grid = GridContainer.new()
 	_grid.add_theme_constant_override("h_separation", 24)
 	_grid.add_theme_constant_override("v_separation", 24)
-	for i in Settings.STYLE_NAMES.size():
-		var t := UiKit.tile(Settings.STYLE_NAMES[i], STYLE_COLOURS[i], Vector2(200, 200), 32)
-		t.pressed.connect(_on_style.bind(i))
+	for i in Settings.THEME_NAMES.size():
+		var t := UiKit.tile(Settings.THEME_NAMES[i], THEME_COLOURS[i], Vector2(200, 200), 34)
+		t.pressed.connect(_on_theme.bind(i))
 		_grid.add_child(t)
-		_style_tiles.append(t)
+		_theme_tiles.append(t)
+	_custom = UiKit.tile("Custom", CUSTOM_COLOUR, Vector2(200, 200), 34)
+	_custom.pressed.connect(grownups_requested.emit)
+	_grid.add_child(_custom)
 	column.add_child(_grid)
 
 	_play = UiKit.tile("Play", Color("#27ae60"), Vector2(300, 220), 56)
@@ -66,27 +60,24 @@ func _ready() -> void:
 
 
 func _layout() -> void:
-	_grid.columns = 4 if size.x > 1000.0 else 2
+	_grid.columns = 3 if size.x > 1000.0 else 2
 
 
+## Exactly one outline: the chosen theme in Simple mode, or the Custom door in Custom mode.
 func _refresh() -> void:
-	UiKit.set_selected(_simple, Settings.mode == "simple")
-	UiKit.set_selected(_custom, Settings.mode == "custom")
-	for i in _style_tiles.size():
-		UiKit.set_selected(_style_tiles[i], i == Settings.style)
+	var custom := Settings.mode == "custom"
+	for i in _theme_tiles.size():
+		UiKit.set_selected(_theme_tiles[i], not custom and i == Settings.theme)
+	UiKit.set_selected(_custom, custom)
+	_custom.text = "Custom\n(%s)" % Settings.THEME_NAMES[Settings.theme] if custom else "Custom"
 	var resting := Settings.is_rest_time()
 	_play.disabled = resting
 	_play.text = "Rest time" if resting else "Play"
 
 
-func _on_simple() -> void:
+func _on_theme(index: int) -> void:
+	Settings.theme = index
 	Settings.mode = "simple"
-	Settings.save_settings()
-	_refresh()
-
-
-func _on_style(index: int) -> void:
-	Settings.style = index
 	Settings.save_settings()
 	_refresh()
 

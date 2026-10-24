@@ -1,4 +1,4 @@
-# Touch Colour App - Product Spec (Draft v0.4)
+# Touch Colour App - Product Spec (Draft v0.5)
 
 Status: decisions from rounds 1-3 applied; Phase 1 skeleton plus on-device play statistics in `app/`. Current reduced scope in section 2a. Remaining open items in section 11.
 
@@ -18,6 +18,7 @@ A full-screen canvas. Every touch produces a colour/light effect, similar to a r
 | D6 | Play timer | Off by default; parent can choose 5-30 minutes (15 suggested). | Effects and sound fade over the final 60 s, then Play shows "Rest time" until a grown-up restarts the timer. |
 | D8 | Metrics | On-device play statistics, shown to the parent in Grown-ups and copyable. Nothing sent off the device. | Measures validation without analytics SDKs or a backend. See `docs/FAMILY_TEST_KIT.md`. |
 | D9 | Backend | None. A static page hosts the privacy policy and support link. | No running costs, nothing to breach, works offline. |
+| D10 | Themes and effects | Five themes on Home (Simple, Watercolour, Disco, Anime, Space), one selection outline. Effects: Ripple, Cross lines, Glow. Background animations: Breathing, Wave, Spectrum. | Replaces "art styles"; section 4.4. |
 | D7 | Obstacles | User can place simple shapes that redirect effects (e.g. a triangle deflecting a beam or ripple). | Phase 2. Ripples move to a GPU wave simulation (section 4.3). |
 
 ## 2a. Current scope (snapshot, 24 Oct 2026)
@@ -106,6 +107,32 @@ Interaction design:
 - Drag a shape out to place it, drag to move, two-finger twist to rotate, drag back to the tray to remove.
 - "Lock shapes" option so a toddler cannot move them by accident.
 - Max ~6 shapes on screen.
+
+### 4.4 Themes, effects, colours and sounds (v0.5)
+
+Themes (chosen by the child on Home; exactly one tile outlined):
+
+| Theme | Background | How touches look | Sound | Default colours |
+|---|---|---|---|---|
+| Simple | Paper | Ink on paper (multiply), short trails | Marimba, C major pentatonic | Rainbow |
+| Watercolour | Art canvas weave | Pigment bleeding into canvas, long trails | Soft piano, G major pentatonic | Pastel |
+| Disco | Light and slightly darker grey bathroom tiles | Coloured light falling on the tiles, mirror-ball sparkle, Wave background animation | Synth pluck, A minor pentatonic | Sports Fusion |
+| Anime | Faded schoolyard: school building with clock tower, courtyard, cherry trees | Cel-shaded light bands with outlines | Bell, Japanese yo scale on D | Pastel |
+| Space | Cartoon solar system: sun at the left edge, orbits, six planets (one ringed) | Light glowing over the scene | Soft pad, C minor pentatonic, low | Nebula |
+
+Backgrounds are drawn by the shader as placeholders. Final versions should be illustrated artwork (commissioned or properly licensed). The Anime scene must be an original school, not one from an existing series.
+
+Touch effects (modelled on reactive RGB keyboard modes):
+- **Ripple:** one interfering ring wave per tap. The only ripple in the app.
+- **Cross lines:** a pulse runs outward along the horizontal and vertical lines through the touch.
+- **Glow:** the touched spot lights up and fades.
+- Dragging leaves fading glow spots. Holding keeps a soft glow under the finger.
+
+Background animations (no touch needed; Custom, or Disco's default): Breathing (0.2 Hz), Wave (slow diagonal colour band), Spectrum (whole-screen slow colour cycle). All are slow and smooth, inside the photosensitivity rule. They keep the screen rendering, so they cost battery.
+
+Colour schemes: Rainbow, Dynamic, Sports Fusion, Pastel, Ocean, Nebula, Bedtime. Dynamic (#FF5733, #C70039, #900C3F, #F0F0F0) and Sports Fusion (#C8102E, #FFC700, #0072B8, #FFFFFF) are the first two palettes on colorany.com's keyboard palette page, read from search results; confirm on the live page. Their near-black (#1C1C1C) and grey (#4D4D4D) stops are dropped because they do not show as light.
+
+There are no levels. Sound changes with the theme: each has its own instrument and five-note scale, so random tapping always sounds musical.
 
 ## 5. Technology choice
 
