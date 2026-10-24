@@ -35,6 +35,7 @@ var _speed_mult := 1.0
 var _hue_base := 0.0
 var _corner_index := -1
 var _corner_start := 0.0
+var _rest_marked := false
 
 
 func _ready() -> void:
@@ -69,10 +70,23 @@ func _ready() -> void:
 	_on_resized()
 	_apply_settings()
 	Settings.start_session_if_needed()
+	_begin_stats()
 
 
 func _exit_tree() -> void:
 	Sfx.fade = 1.0
+	PlayStats.end("left")
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED:
+		PlayStats.end("app_left")
+	elif what == NOTIFICATION_APPLICATION_RESUMED:
+		_begin_stats()
+
+
+func _begin_stats() -> void:
+	PlayStats.begin(Settings.style, Settings.mode, Settings.active_effect(), Settings.low_stimulation)
 
 
 func _apply_settings() -> void:
@@ -108,6 +122,10 @@ func _process(delta: float) -> void:
 	_update_corner()
 	var master := _wind_down_level()
 	Sfx.fade = master
+	PlayStats.tick(delta, _energy.value)
+	if master <= 0.0 and not _rest_marked:
+		_rest_marked = true
+		PlayStats.mark_rest()
 	_upload(master)
 	_update_idle(delta, master)
 
@@ -137,6 +155,7 @@ func _on_down(index: int, pos: Vector2) -> void:
 	var glow := _spawn(Kind.GLOW, pos, 0.5 + 0.3 * intensity)
 	glow["held"] = true
 	_pointers[index] = {"pos": pos, "start": _t, "glow": glow, "last_trail": pos}
+	PlayStats.touch(_pointers.size())
 	_feedback(pos, intensity)
 
 
@@ -250,6 +269,7 @@ func _update_corner() -> void:
 		progress = (_t - _corner_start) / EXIT_HOLD_S
 		if progress >= 1.0:
 			_corner_index = -1
+			PlayStats.end("corner")
 			exit_requested.emit()
 			return
 	_overlay.set_progress(progress, CORNER_CM * _units_per_cm)

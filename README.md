@@ -3,6 +3,8 @@
 A touch-reactive colour and light app for children, young adults and neurodivergent users. Every touch produces colour effects (ripples, bursts, glows) in a chosen art style, similar to a reactive RGB keyboard.
 
 - Product spec and decisions: [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)
+- Competitor research: [docs/COMPETITORS.md](docs/COMPETITORS.md)
+- Family testing: [docs/FAMILY_TEST_KIT.md](docs/FAMILY_TEST_KIT.md)
 - Engine: Godot 4 (GL Compatibility renderer), one codebase for Android and iOS
 - Status: Phase 1 skeleton
 
@@ -32,7 +34,7 @@ app/
   scenes/home/          Child-safe home tiles
   scenes/canvas/        Touch canvas, corner-hold exit
   scenes/grownups/      Parental gate + Custom settings + help
-  engine/               Energy (tap tempo), intensity resolver
+  engine/               Energy (tap tempo), intensity resolver, play statistics (autoload: PlayStats)
   render/               Effect shader (ripples, bursts, glow, 4 art styles)
   audio/sfx.gd          Placeholder pentatonic tone, 8-voice cap (autoload: Sfx)
   haptics/haptics.gd    Intensity-scaled vibration (autoload: Haptics)

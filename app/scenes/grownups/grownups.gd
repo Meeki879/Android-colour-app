@@ -137,6 +137,26 @@ func _build_settings() -> void:
 	restart.pressed.connect(Settings.reset_session)
 	column.add_child(restart)
 
+	column.add_child(UiKit.label("Play summary", 40))
+	column.add_child(UiKit.label(
+		"Recorded on this device only. Nothing is sent anywhere. Copy it to share with "
+		+ "a therapist or teacher if you choose."))
+	var summary := UiKit.label(PlayStats.summary_text(7))
+	column.add_child(summary)
+	var stats_row := HBoxContainer.new()
+	stats_row.add_theme_constant_override("separation", 20)
+	var copy := UiKit.tile("Copy summary", Color("#2e86c1"), Vector2(150, 90), 28)
+	copy.pressed.connect(func():
+		DisplayServer.clipboard_set(PlayStats.summary_text(7) + "\n\n" + PlayStats.summary_text(30))
+		copy.text = "Copied")
+	var wipe := UiKit.tile("Clear history", Color("#555555"), Vector2(150, 90), 28)
+	wipe.pressed.connect(func():
+		PlayStats.clear()
+		summary.text = PlayStats.summary_text(7))
+	stats_row.add_child(copy)
+	stats_row.add_child(wipe)
+	column.add_child(stats_row)
+
 	column.add_child(UiKit.label("Support a charity", 40))
 	column.add_child(UiKit.label(
 		"This app is free. If you enjoy it, consider giving to a charity you choose. "

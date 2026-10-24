@@ -1,6 +1,6 @@
-# Touch Colour App - Product Spec (Draft v0.3)
+# Touch Colour App - Product Spec (Draft v0.4)
 
-Status: decisions from rounds 1-2 applied; Phase 1 skeleton in `app/`. Remaining open items in section 11.
+Status: decisions from rounds 1-3 applied; Phase 1 skeleton plus on-device play statistics in `app/`. Current reduced scope in section 2a. Remaining open items in section 11.
 
 ## 1. Core concept
 
@@ -16,7 +16,21 @@ A full-screen canvas. Every touch produces a colour/light effect, similar to a r
 | D4 | Canvas exit | Hold a corner. | Single corner, 3 s hold, visible progress ring. Exits to the child-safe home, never directly to settings or links. |
 | D5 | Support link | The parent enters a charity of their own choosing (name + https link) in the Grown-ups area. | No developer payment link in the app. Buy Me a Coffee goes on the store listing / website. |
 | D6 | Play timer | Off by default; parent can choose 5-30 minutes (15 suggested). | Effects and sound fade over the final 60 s, then Play shows "Rest time" until a grown-up restarts the timer. |
+| D8 | Metrics | On-device play statistics, shown to the parent in Grown-ups and copyable. Nothing sent off the device. | Measures validation without analytics SDKs or a backend. See `docs/FAMILY_TEST_KIT.md`. |
+| D9 | Backend | None. A static page hosts the privacy policy and support link. | No running costs, nothing to breach, works offline. |
 | D7 | Obstacles | User can place simple shapes that redirect effects (e.g. a triangle deflecting a beam or ripple). | Phase 2. Ripples move to a GPU wave simulation (section 4.3). |
+
+## 2a. Current scope (snapshot, 24 Oct 2026)
+
+| Item | Now | Later |
+|---|---|---|
+| First market | Parents of neurodivergent children aged 2 to 8 | Wider toddler market, young adults |
+| Early adopters | Own family + 5 test families + 1 OT | Store listing |
+| Platform | Android only | iOS once success criteria are met |
+| Features | Phase 1 + play statistics | Obstacles and wave simulation (Phase 2) |
+| Value proposition | Fluid-quality light play tuned for sensory regulation: calm by default, toddler-proof, never strobes, ends gently | |
+| Success (proposed) | Family test thresholds in `docs/FAMILY_TEST_KIT.md` are met | |
+| Competitors | See `docs/COMPETITORS.md` | |
 
 ## 3. Access layers
 
@@ -170,6 +184,7 @@ Most Android phones and all current iPhones do **not** report true finger pressu
 
 ### 8.1 Privacy
 - **No data collected.** No analytics, no crash reporting SDK, no ads SDK, no accounts.
+- **On-device play statistics** (sessions, minutes, touches, fast-tapping time, timer use) are stored locally, shown only in the Grown-ups area, and leave the device only if the parent copies them. Kept for 90 days; the parent can clear them.
 - **No internet permission.** External links open in the system browser, which works without the permission.
 - Store data-safety forms: "No data collected / no data shared".
 - A short privacy policy page is still required by both stores for apps aimed at children. It states the above.
