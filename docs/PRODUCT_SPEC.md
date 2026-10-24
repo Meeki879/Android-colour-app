@@ -1,20 +1,42 @@
-# Touch Colour App - Product Spec (Draft v0.1)
+# Touch Colour App - Product Spec (Draft v0.2)
 
-Status: discussion draft. Nothing here is locked until the open decisions in section 9 are answered.
+Status: decisions from round 1 applied. Remaining open items in section 11.
 
 ## 1. Core concept
 
 A full-screen canvas. Every touch produces a colour/light effect, similar to a reactive RGB keyboard. Touches interact with each other (e.g. overlapping ripples), and rapid tapping speeds up and intensifies the response.
 
-## 2. Screens
+## 2. Decisions log
 
-| Screen | Purpose |
-|---|---|
-| Home | Two large tiles: **Simple** (preselected) and **Custom**. One tap on Simple goes straight to the canvas. |
-| Custom | Tiles for: Palette, Effect, Art Style, Light Behaviour, Interaction, Sound, Haptics, Performance. Live preview strip at the top. |
-| Canvas | Full-screen, immersive (system bars hidden). Exit via a deliberate gesture (see 6.3). |
+| # | Topic | Decision | Consequence |
+|---|---|---|---|
+| D1 | Audience | Children, young adults, neurodivergent users. First users: ages 5 and 1. | Child-safety design is the baseline, not an add-on. Google Play Families policy and Apple Kids Category rules apply. |
+| D2 | Business model | Free. Support link (Buy Me a Coffee or charity) under its own banner in the menu. | No ads, no analytics, no in-app purchases. Support link sits behind a parental gate. See section 8. |
+| D3 | Platforms | Android first, iOS planned. | Cross-platform engine chosen now (section 5). iOS builds require a Mac and an Apple Developer account. |
+| D4 | Canvas exit | Hold a corner. | Single corner, 3 s hold, visible progress ring. Exits to the child-safe home, never directly to settings or links. |
 
-## 3. Feature model
+## 3. Access layers
+
+Three layers, so a 1 year old cannot get anywhere harmful, a 5 year old can choose styles alone, and only an adult reaches settings and external links.
+
+| Layer | Who | Contents | Gate |
+|---|---|---|---|
+| Canvas | Everyone | Full-screen effects | None |
+| Home | Child (picture-based, no reading required) | Large tiles: Simple (preselected), style pictures (Watercolour, Disco, Anime, Space) | Corner hold (3 s) from canvas |
+| Grown-ups | Adult | Custom settings, sound, haptics, timers, accessibility, Support banner | Parental gate |
+
+### 3.1 Parental gate
+- Example: "Hold three fingers on the screen for 3 seconds", or a multiplication question with written numbers.
+- Must not ask for or store age, name, or any personal data.
+- Required in front of: Custom settings, Support banner (external links), any link out of the app.
+
+### 3.2 Locking the device to the app
+Immersive mode and the corner hold do **not** stop a child from leaving the app: the system Home/Recents gestures cannot be fully blocked by an app.
+- Android: guide the parent to enable **App pinning** (Settings > Security > App pinning) with an in-app help screen.
+- iOS: guide the parent to enable **Guided Access**.
+- Show this guidance once on first launch and keep it in the Grown-ups area.
+
+## 4. Feature model
 
 Three independent axes, combined at render time. Presets are curated combinations; Custom exposes the axes directly.
 
@@ -22,114 +44,150 @@ Three independent axes, combined at render time. Presets are curated combination
 |---|---|---|
 | Effect (what a touch does) | Ripple, Burst, Glow pulse, Trail, Shockwave | Touch event spawns an effect instance with position, start time, intensity, type |
 | Art style (how it looks) | Watercolour, Disco, Anime, Space | Shader pass: palette, texture, post-processing, persistence |
-| Palette | Rainbow cycle, Neon, Pastel, Mono, User-picked | Uniform colour ramp passed to the shader |
+| Palette | Rainbow cycle, Neon, Pastel, Mono, Bedtime (warm, dim), User-picked | Colour ramp passed to the shader |
 
-### 3.1 Interaction rules
+### 4.1 Interaction rules
+- **Overlap:** ripples rendered as waves and summed per pixel, producing interference (bright crossings, dark bands).
+- **Saturation control:** tone mapping so many touches never turn the screen solid white.
+- **Energy:** one global value that rises with tap rate and decays over 1-2 s. Drives effect speed, saturation, size and sound tempo. Hard ceiling so whole-hand slapping by a toddler stays pleasant, not chaotic.
+- **Cap:** max 64 active effect instances; oldest recycled first.
 
-- **Overlap:** ripples are rendered as waves and summed per pixel, so crossings produce interference (constructive bright spots, destructive dark bands). This is physically correct, cheap on GPU, and looks better than alpha-stacking.
-- **Saturation control:** additive light saturates to white with many touches. A tone-mapping step is required.
-- **Tap tempo ("energy"):** a single global value that rises with tap rate and decays over ~1-2 s. It drives effect speed, saturation, spawn size, and sound tempo. One scalar, many outputs: simple to tune.
-- **Cap:** max active effect instances (target 64). Oldest instance is recycled when the cap is hit.
-
-### 3.2 Art styles - technical meaning
+### 4.2 Art styles - technical meaning
 
 | Style | Look | Technical requirement |
 |---|---|---|
-| Watercolour | Soft bleeding edges, pigment pooling, paper grain | Persistent feedback buffer (ping-pong framebuffers) with diffusion + paper texture |
-| Disco | Hard saturated colour, strobes, mirror-ball sparkle | Beat clock; **strobe must respect photosensitivity limits (section 7)** |
+| Watercolour | Soft bleeding edges, pigment pooling, paper grain | Persistent feedback buffer (ping-pong render targets) with diffusion + paper texture |
+| Disco | Saturated colour, mirror-ball sparkle, beat pulses | Beat clock; flash limits enforced (section 7) |
 | Anime | Cel-shaded bands, outlines, speed lines, petals/sparkles | Colour quantisation + edge pass + particle sprites |
-| Space | Starfield, nebula noise, touches act as gravity wells / supernovas | Procedural noise + particle field + bloom |
+| Space | Starfield, nebula noise, touches act as gravity wells | Procedural noise + particle field + bloom |
 
-Watercolour and Space both need persistence between frames, which drives the rendering choice in section 5.
+## 5. Technology choice
 
-## 4. Touch intensity - hardware reality
+Because iOS is planned, a native Kotlin build would be rewritten for iOS. Options compared:
 
-Most current Android phones do **not** report true touch pressure. `MotionEvent.getPressure()` on most devices returns a constant or a value derived from contact area. Intensity must therefore be a blended signal:
+| Criterion | Godot 4 (recommended) | Flutter | Native Kotlin + Swift |
+|---|---|---|---|
+| GPU shaders | Native, first-class | Fragment shaders supported, more limited | Full control |
+| Frame feedback (Watercolour/Space) | Easy (SubViewport render targets) | Awkward (render to image each frame) | Full control |
+| Multi-touch | Built in | Built in | Built in |
+| Low-latency audio, polyphony | Built in | Third-party plugin | Platform APIs |
+| Settings/tiles UI | Adequate | Excellent | Excellent |
+| One codebase for Android + iOS | Yes | Yes | No (two apps) |
+| Licence / fees | MIT, no fees | BSD, no fees | n/a |
+| Test on PC without a phone | Yes (mouse/touchscreen) | Partly | Emulator only |
 
-| Signal | Source | Reliability |
-|---|---|---|
-| Contact size | `getTouchMajor()` / `getSize()` | Medium: varies by device, needs calibration |
-| Hold duration | down-to-up time ("charge up") | High on all devices |
-| Swipe velocity | `VelocityTracker` | High on all devices |
-| Tap rate | time between taps | High on all devices |
-| True pressure | Stylus (S Pen, etc.) only | High, but only with stylus |
+Recommendation: **Godot 4 (current 4.x stable)**. The product is mostly a real-time effect engine with a small settings UI, which is the profile Godot is built for. Flutter is the fallback if the settings/UI side grows significantly.
 
-Plan: an `IntensityResolver` that combines these, plus a one-time optional calibration ("tap softly, then firmly").
-
-## 5. Architecture
-
-- **Language/UI:** Kotlin, Jetpack Compose for Home and Custom screens.
-- **Renderer:** OpenGL ES 3.0 via `GLSurfaceView` (or `SurfaceView` + EGL). All effects computed in fragment shaders on the GPU; CPU only manages a small list of touch events.
-  - Why not Compose Canvas: draw calls are issued per shape from the CPU; fine for dozens of shapes, poor for per-pixel interference and feedback buffers.
-  - Why not AGSL (`RuntimeShader`): requires Android 13+, and has no convenient frame-to-frame feedback for Watercolour/Space.
-  - Why not Vulkan: far more code for no visible gain at this scale.
-- **Render loop:** vsync-driven, time-based animation (works at 60/90/120 Hz). Render continuously only while effects are alive; idle otherwise to save battery.
-- **Resolution scaling:** render to an off-screen buffer at 50-100% of screen resolution and upscale. Biggest single lever for battery and heat on tablets.
-- **Settings:** Jetpack DataStore. Presets exportable as JSON (later: share via QR code).
-- **Sound:** `SoundEngine` interface with a no-op placeholder now. Real implementation via `SoundPool` (samples) first; Oboe (native, low latency) only if latency proves unacceptable.
-- **Haptics:** `VibrationEffect` scaled by intensity; haptic primitives on Android 11+.
-
-### 5.1 Module sketch
+### 5.1 Project structure (Godot)
 
 ```
-app/
-  ui/home        Home tiles (Simple / Custom)
-  ui/custom      Settings tiles + live preview
-  canvas/        GL surface, render loop, touch input
-  engine/        TouchEvent model, IntensityResolver, Energy, effect pool
-  render/        Shaders per effect and per art style, framebuffer manager
-  audio/         SoundEngine interface + NoOp + SoundPool implementation
-  haptics/       HapticEngine
-  settings/      DataStore, presets
+project/
+  scenes/
+    canvas/       Full-screen effect canvas, corner-hold exit
+    home/         Child-safe picture tiles
+    grownups/     Parental gate, Custom settings, Support banner, help
+  engine/
+    touch_input   Pointer tracking, IntensityResolver
+    energy        Tap-rate energy model
+    effect_pool   Active effect instances (cap 64)
+  render/
+    effects/      Ripple, burst, glow, trail, shockwave shaders
+    styles/       Watercolour, disco, anime, space post-process shaders
+    palettes/     Colour ramps
+  audio/          SoundEngine interface, placeholder no-op, voice limiter
+  haptics/        Intensity-scaled vibration
+  settings/       Persistent settings + presets
 ```
 
-## 6. Device and platform considerations
+## 6. Touch intensity - hardware reality
 
-### 6.1 Screen sizes
-- Effect sizes defined in dp, not pixels, so a ripple is the same physical size on phone and tablet.
-- Shader coordinates aspect-corrected so circles stay round in any orientation.
-- Settings layout adapts via `WindowSizeClass` (phone: single column; tablet/foldable: grid with live preview alongside).
-- Handle rotation, foldable hinge/posture changes, and split-screen without losing canvas state.
+Most Android phones and all current iPhones do **not** report true finger pressure. Intensity is a blended signal:
 
-### 6.2 Multi-touch
-- Track up to 10 pointers. Palm rejection on tablets (ignore very large contact areas).
+| Signal | Reliability |
+|---|---|
+| Hold duration ("charge up") | High, all devices |
+| Swipe velocity | High, all devices |
+| Tap rate | High, all devices |
+| Contact size | Medium, device-dependent; optional calibration |
+| True pressure | Stylus only |
 
-### 6.3 System gesture conflicts
-- With gesture navigation, edge swipes trigger Back/Home. Use immersive mode and `setSystemGestureExclusionRects` (Android limits exclusion to 200 dp per vertical edge, so the full edge cannot be claimed).
-- Exit gesture from canvas must be deliberate and unlikely to fire by accident: e.g. hold a corner for 2 s, or two-finger long press. Decision needed (section 9).
+**Palm rejection is off by default.** A 1 year old slapping with a whole hand is valid input. Adult/tablet profile can enable it.
 
-### 6.4 Performance and thermals
-- Target: 60 fps sustained on a mid-range 2022 device; 120 fps where available.
-- Use `PowerManager` thermal headroom to step down resolution/frame rate before the OS throttles.
-- Low-end GPU risk (Mali/PowerVR): `mediump` float precision causes artifacts when time values grow large. Keep shader time wrapped/rebased.
+## 7. Safety, sensory and wellbeing
 
-### 6.5 Minimum Android version
-- Proposed `minSdk 26` (Android 8.0): OpenGL ES 3.0 and modern audio/haptics available, near-full device coverage. `targetSdk` per current Google Play requirement at publish time.
+### 7.1 Photosensitivity
+- No flashing above 3 per second over large screen areas (WCAG 2.3.1 threshold), in every style including Disco. Hard-coded limit, not a setting.
+- Large luminance jumps smoothed over at least 100 ms.
 
-## 7. Safety and compliance
+### 7.2 Sensory (neurodivergent users)
+- Default preset is **calm**: slow effects, soft palette, gentle sound.
+- "Low stimulation" setting: reduced motion, reduced saturation, no sudden sound onsets.
+- Predictable behaviour: the same touch gives the same result.
+- Respect the system reduce-motion / remove-animations setting.
 
-- **Photosensitive epilepsy:** flashing more than 3 times per second over a large area is a recognised seizure trigger (WCAG 2.3.1). Required: first-launch warning, a "Reduce flashing" setting on by default, and a hard cap on strobe frequency and luminance delta in Disco mode.
-- **Reduce motion:** respect the system animation-scale / remove-animations setting.
-- **Children:** if the target audience includes children, Google Play Families policy applies (ad and analytics SDK restrictions, data handling, a parental gate in front of settings and purchases). Decision needed (section 9).
-- **Assets:** all sounds, textures and fonts must be original or licensed (e.g. CC0). "Anime" is a visual style only: no third-party characters or trademarks.
+### 7.3 Hearing
+- Master volume capped in-app (default maximum around 60% of device volume), adjustable only in Grown-ups.
+- Every sound has a soft attack (no click or sharp onset).
 
-## 8. Sound (placeholder scope)
+### 7.4 Session wellbeing
+- Optional play timer set by the parent: effects slowly fade to dark and sound fades out at the end ("wind down"), rather than an abrupt stop.
+- Bedtime palette: warm, dim colours.
+- Note for the parent: WHO and AAP guidance recommends no or very limited screen time under age 2. A wind-down timer is the product's honest answer to this, and the Grown-ups help can mention it.
 
-- Settings now: master volume, on/off, sound pack per art style, "interaction sounds" toggle (sounds when effects collide/overlap).
-- Mapping idea: horizontal position maps to pitch, intensity maps to volume, energy maps to tempo/density.
-- Quantise pitch to a pentatonic scale so random tapping always sounds musical rather than dissonant.
-- Polyphony cap (e.g. 8 voices) to prevent noise when tapping fast.
+## 8. Privacy, monetisation and store compliance
 
-## 9. Open decisions
+### 8.1 Privacy
+- **No data collected.** No analytics, no crash reporting SDK, no ads SDK, no accounts.
+- **No internet permission.** External links open in the system browser, which works without the permission.
+- Store data-safety forms: "No data collected / no data shared".
+- A short privacy policy page is still required by both stores for apps aimed at children. It states the above.
 
-1. **Target audience:** adults (relaxation, visual toy), young children (sensory/cause-and-effect), or neurodivergent sensory use? Changes policy obligations, UI locking, and monetisation.
-2. **Business model:** free, one-off paid, or free with paid style packs? (Ads strongly not recommended: they break the full-screen experience and, for children, are heavily restricted.)
-3. **Canvas exit gesture:** corner hold, two-finger long press, or other.
-4. **Platform scope:** Android only, or iOS later? (If iOS is likely within 12 months, Flutter with fragment shaders is worth reconsidering before code is written.)
-5. **Extras:** live wallpaper mode (reuses the same renderer, low extra cost), screen-saver mode, music-reactive mode (microphone, adds a permission).
+### 8.2 Support banner
+- Location: Grown-ups area only, behind the parental gate, under its own banner. Never prompted, never shown to the child, never time-limited or nagging.
+- Charity link: donations to registered charities are exempt from store billing requirements on Google Play and permitted via an external link on iOS. Lowest compliance risk.
+- Buy Me a Coffee (developer tip): store rules on external links for tips have changed repeatedly and differ by region, especially on iOS. Recommended: charity link in-app; Buy Me a Coffee on the store listing and website. Re-check current policies before each store submission.
 
-## 10. Development setup (when the PC is connected)
+### 8.3 Store readiness
+- Google Play: Families policy self-declaration (target age groups), content rating questionnaire, privacy policy URL. New personal developer accounts must run a closed test with testers for a minimum period before production release; check the current requirement when the account is created.
+- Apple: Kids Category rules (parental gate before links out, no third-party analytics/ads), Apple Developer Program membership, Mac with Xcode for builds.
 
-- Android Studio (current stable), Android SDK, JDK 17+.
-- A **physical device** with USB debugging enabled. The emulator does not represent real GPU performance and makes multi-touch testing awkward.
-- Ideally test on one low-end phone and one tablet before any release.
+## 9. Device and platform considerations
+
+### 9.1 Screen sizes
+- Effect sizes defined in physical units (dp/points), so ripples are the same physical size on phone and tablet.
+- Aspect-corrected shader coordinates: circles stay round in any orientation.
+- Home tiles: large targets (at least 2x the standard 48 dp minimum for toddlers). Phone: 2 columns. Tablet: 3-4 columns.
+- Handle rotation, foldables and split-screen without losing canvas state. Option to lock orientation.
+
+### 9.2 Multi-touch
+- Track up to 10 pointers.
+
+### 9.3 Performance and thermals
+- Target 60 fps sustained on a mid-range 2022 device; higher refresh where available.
+- Render effects at 50-100% resolution and upscale; auto-reduce when the device heats up.
+- Stop rendering when nothing is animating.
+- Keep shader time values small to avoid precision artifacts on low-end GPUs.
+
+### 9.4 Minimum OS
+- Android 8.0+ and current Play target API at publish time. iOS: to be set when the iOS build starts.
+
+## 10. Sound (placeholder scope)
+
+- Settings: on/off, volume (capped), sound pack per art style, interaction sounds (when effects overlap).
+- Mapping: horizontal position to pitch, intensity to volume, energy to tempo/density.
+- Pitch snapped to a pentatonic scale so any tapping sounds musical.
+- Maximum 8 simultaneous voices.
+- All sounds original or CC0-licensed.
+
+## 11. Open items
+
+1. Which charity (if the charity route is taken).
+2. Play timer default (off, or e.g. 15 minutes).
+3. Lock orientation by default, or follow the device?
+4. Extras for later: live wallpaper mode, music-reactive mode (needs microphone permission, so excluded from the children's version unless behind the gate).
+
+## 12. Development setup (when the PC is connected)
+
+- Godot 4 (current stable) with Android export templates; Android SDK + JDK 17 (Godot's Android export docs list exact versions).
+- A physical Android device with USB debugging enabled. Test on one low-end phone and one tablet before any release.
+- iOS later: Mac with Xcode, Apple Developer Program membership.
