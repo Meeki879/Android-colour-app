@@ -43,7 +43,7 @@ app/
 
 ## Known limitations (Phase 1)
 
-- Untested in the Godot editor at time of writing: scripts were syntax-checked only. Report any editor errors.
+- Runs in the Godot editor on PC (first run 24 Oct 2026). Not yet tested on an Android device.
 - Ripples are analytic and do not yet reflect off objects (Phase 2: GPU wave simulation + obstacles).
 - One placeholder tone; real sound packs come in Phase 3.
 - No app icon or store assets yet.
