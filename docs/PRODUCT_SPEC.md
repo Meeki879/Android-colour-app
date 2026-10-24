@@ -1,6 +1,6 @@
-# Touch Colour App - Product Spec (Draft v0.2)
+# Touch Colour App - Product Spec (Draft v0.3)
 
-Status: decisions from round 1 applied. Remaining open items in section 11.
+Status: decisions from rounds 1-2 applied; Phase 1 skeleton in `app/`. Remaining open items in section 11.
 
 ## 1. Core concept
 
@@ -14,6 +14,9 @@ A full-screen canvas. Every touch produces a colour/light effect, similar to a r
 | D2 | Business model | Free. Support link (Buy Me a Coffee or charity) under its own banner in the menu. | No ads, no analytics, no in-app purchases. Support link sits behind a parental gate. See section 8. |
 | D3 | Platforms | Android first, iOS planned. | Cross-platform engine chosen now (section 5). iOS builds require a Mac and an Apple Developer account. |
 | D4 | Canvas exit | Hold a corner. | Single corner, 3 s hold, visible progress ring. Exits to the child-safe home, never directly to settings or links. |
+| D5 | Support link | The parent enters a charity of their own choosing (name + https link) in the Grown-ups area. | No developer payment link in the app. Buy Me a Coffee goes on the store listing / website. |
+| D6 | Play timer | Off by default; parent can choose 5-30 minutes (15 suggested). | Effects and sound fade over the final 60 s, then Play shows "Rest time" until a grown-up restarts the timer. |
+| D7 | Obstacles | User can place simple shapes that redirect effects (e.g. a triangle deflecting a beam or ripple). | Phase 2. Ripples move to a GPU wave simulation (section 4.3). |
 
 ## 3. Access layers
 
@@ -60,6 +63,35 @@ Three independent axes, combined at render time. Presets are curated combination
 | Disco | Saturated colour, mirror-ball sparkle, beat pulses | Beat clock; flash limits enforced (section 7) |
 | Anime | Cel-shaded bands, outlines, speed lines, petals/sparkles | Colour quantisation + edge pass + particle sprites |
 | Space | Starfield, nebula noise, touches act as gravity wells | Procedural noise + particle field + bloom |
+
+Skeleton note: trails currently come from blending each frame over the previous one (viewport never cleared). True watercolour diffusion (Phase 3) needs ping-pong render targets.
+
+### 4.3 Obstacles (Phase 2)
+
+The user places simple shapes on the canvas; effects react to them.
+
+| Shape | Behaviour |
+|---|---|
+| Wall / bar | Reflects ripples and beams |
+| Triangle (prism) | Reflects ripples; redirects beams, optionally splits a beam into a rainbow |
+| Circle | Ripples bend and diffract around it; beams bounce off |
+| Mirror | Pure reflection, no colour change |
+
+| Effect | Mechanism | Cost |
+|---|---|---|
+| Ripples | **GPU wave simulation**: 2D wave equation on a grid (two ping-pong render targets, ~256-512 cells across). Obstacles are masked cells. Reflection, diffraction and interference emerge for any shape. Touches inject impulses into the grid. | Replaces the current analytic ripple shader. Grid runs below screen resolution, so it stays cheap. |
+| Beams / lines (new effect: swipe launches a beam) | CPU ray tracing against shape edges: segment intersection, reflect about the edge normal, up to ~8 bounces. Rendered as glowing segments. | Small. Exact and predictable. |
+| Bursts / particles | CPU collision against shape edges, bounce. | Small. |
+
+Rejected: analytic reflections inside the current ripple shader (mirror-image sources). Works for one flat wall; a triangle needs multiple reflections plus shadowing, and complexity grows with every shape.
+
+Consequence: the analytic ripple shader is the v0.1 renderer. The touch input layer (positions, intensity, energy) is kept; only the ripple backend is swapped in Phase 2.
+
+Interaction design:
+- Shape tray along one edge of the canvas, shown only when "Shapes" is enabled (off by default for toddler play).
+- Drag a shape out to place it, drag to move, two-finger twist to rotate, drag back to the tray to remove.
+- "Lock shapes" option so a toddler cannot move them by accident.
+- Max ~6 shapes on screen.
 
 ## 5. Technology choice
 
@@ -181,10 +213,17 @@ Most Android phones and all current iPhones do **not** report true finger pressu
 
 ## 11. Open items
 
-1. Which charity (if the charity route is taken).
-2. Play timer default (off, or e.g. 15 minutes).
-3. Lock orientation by default, or follow the device?
-4. Extras for later: live wallpaper mode, music-reactive mode (needs microphone permission, so excluded from the children's version unless behind the gate).
+1. Lock orientation by default, or follow the device? (Skeleton follows the device.)
+2. Extras for later: live wallpaper mode, music-reactive mode (needs microphone permission, so excluded from the children's version unless behind the gate).
+
+## 11a. Roadmap
+
+| Phase | Scope |
+|---|---|
+| 1 (skeleton, done) | Home / Grown-ups / Canvas screens, parental gate, analytic ripples/bursts/glow, 4 art styles, energy model, placeholder pentatonic tone, haptics, play timer, charity link |
+| 2 | GPU wave simulation for ripples + obstacles (4.3), beam effect, shape tray |
+| 3 | Real sound packs per style, interaction sounds, watercolour diffusion, art polish |
+| 4 | Store readiness: icons, privacy policy page, Families declaration, closed testing, iOS build |
 
 ## 12. Development setup (when the PC is connected)
 

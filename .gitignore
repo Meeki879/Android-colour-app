@@ -1,0 +1,7 @@
+# Godot 4
+app/.godot/
+app/android/build/
+*.apk
+*.aab
+*.keystore
+*.jks
